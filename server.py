@@ -40,7 +40,8 @@ class Server:
         )
         
         # TX Characteristic (PC gets notifications from this)
-        self.ble.add_characteristic(
+        # Store reference to this characteristic
+        self.tx_char = self.ble.add_characteristic(
             srv_id=1, chr_id=2, uuid=TX_UUID,
             value=[],
             notifying=False,
@@ -67,8 +68,8 @@ class Server:
             response = self.client.recv(1024).decode().strip()
             if response:
                 print(f"RPI → {response}")
-                # Send to PC via TX characteristic (chr_id=2)
-                self.ble.get_characteristic(1, 2).set_value(response.encode())
+                # Send to PC via TX characteristic using stored reference
+                self.tx_char.set_value(response.encode())
     
     def run(self):
         """Start the BLE server"""
