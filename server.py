@@ -1,36 +1,80 @@
+#!/usr/bin/env python3
 import socket
 from threading import Thread
-import os
+from bluezero import adapter
+from bluezero import peripheral
+
+SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0"
+RX_UUID = "12345678-1234-5678-1234-56789abcdef1"  # PC writes here
+TX_UUID = "12345678-1234-5678-1234-56789abcdef2"  # PC reads here
 
 class Server:
-    def __init__(self, HOST, PORT):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind((HOST, PORT))
-        self.socket.listen()
-        print('Server waiting for connection...')
-        client_socket, address = self.socket.accept()
-        print("Connection from: " + str(address))
-        Thread(target=self.receive_message, args=(client_socket,)).start()
-        self.talk_to_client(client_socket)
+    def __init__(self):
+        # Setup socket
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(('127.0.0.1', 7632))
+        self.sock.listen(1)
+        print("Waiting for rpi_client...")
+        self.client, _ = self.sock.accept()
+        print("rpi_client connected!")
+        
+        # Setup BLE
+        self.ble = peripheral.Peripheral(
+            adapter.list_adapters()[0],
+            local_name='raspberrypi'
+        )
+        
+        # Add service
+        self.ble.add_service(srv_id=1, uuid=SERVICE_UUID, primary=True)
+        
+        # RX Characteristic (PC writes to this)
+        self.ble.add_characteristic(
+            srv_id=1, chr_id=1, uuid=RX_UUID,
+            value=[],
+            notifying=False,
+            flags=['write', 'write-without-response'],
+            write_callback=self.on_pc_message,
+            read_callback=None,
+            notify_callback=None
+        )
+        
+        # TX Characteristic (PC gets notifications from this)
+        self.ble.add_characteristic(
+            srv_id=1, chr_id=2, uuid=TX_UUID,
+            value=[],
+            notifying=False,
+            flags=['notify'],
+            write_callback=None,
+            read_callback=None,
+            notify_callback=None
+        )
+        
+        print("BLE ready!")
+        
+        # Listen for rpi_client responses
+        Thread(target=self.listen_rpi_client, daemon=True).start()
     
-    def talk_to_client(self, client_socket):
-        while True:
-            server_message = input("")
-            client_socket.send(server_message.encode())
+    def on_pc_message(self, value, options):
+        """PC writes → server → rpi_client"""
+        msg = bytes(value).decode('utf-8').strip()
+        print(f"PC → {msg}")
+        self.client.send(msg.encode())
     
-    def receive_message(self, client_socket):
+    def listen_rpi_client(self):
+        """rpi_client → server → PC via TX characteristic"""
         while True:
-            client_message = client_socket.recv(1024).decode()
-            if (client_message.strip() == "bye" or not client_message.strip()):
-                os._exit(0)
-            print("\033[1;31;40m" + "Client: " + client_message + "\033[0m")
-            
-            # Check the message and send automatic response
-            if client_message.strip() == "1":
-                response = "Hello!"
-            else:
-                response = "Incorrect input, please type in a 1."
-            
-            client_socket.send(response.encode())
+            response = self.client.recv(1024).decode().strip()
+            if response:
+                print(f"RPI → {response}")
+                # Send to PC via TX characteristic (chr_id=2)
+                self.ble.get_characteristic(1, 2).set_value(response.encode())
+    
+    def run(self):
+        """Start the BLE server"""
+        print("Starting BLE server...")
+        self.ble.publish()
 
-Server('127.0.0.1', 7632)
+if __name__ == "__main__":
+    server = Server()
+    server.run()
