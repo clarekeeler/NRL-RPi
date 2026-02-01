@@ -23,4 +23,4 @@ while True:
     print(f"Sending: {response}\n")
     client.send(response.encode())
 
-client.close()
+client.close()  # Move this outside the loop
