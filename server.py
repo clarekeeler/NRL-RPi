@@ -40,16 +40,17 @@ class Server:
         )
         
         # TX Characteristic (PC gets notifications from this)
-        # Store reference to this characteristic
-        self.tx_char = self.ble.add_characteristic(
+        self.ble.add_characteristic(
             srv_id=1, chr_id=2, uuid=TX_UUID,
             value=[],
             notifying=False,
             flags=['notify'],
             write_callback=None,
             read_callback=None,
-            notify_callback=None
+            notify_callback=self.on_tx_subscribe
         )
+        
+        self.tx_characteristic = None  # Will be set when client subscribes
         
         print("BLE ready!")
         
@@ -62,14 +63,25 @@ class Server:
         print(f"PC → {msg}")
         self.client.send(msg.encode())
     
+    def on_tx_subscribe(self, notifying, characteristic):
+        """Called when PC subscribes to notifications"""
+        if notifying:
+            print("PC subscribed to notifications")
+            self.tx_characteristic = characteristic
+        else:
+            print("PC unsubscribed from notifications")
+            self.tx_characteristic = None
+        return notifying
+    
     def listen_rpi_client(self):
         """rpi_client → server → PC via TX characteristic"""
         while True:
             response = self.client.recv(1024).decode().strip()
             if response:
                 print(f"RPI → {response}")
-                # Send to PC via TX characteristic using stored reference
-                self.tx_char.set_value(response.encode())
+                # Send to PC via TX characteristic if subscribed
+                if self.tx_characteristic:
+                    self.tx_characteristic.set_value(response.encode())
     
     def run(self):
         """Start the BLE server"""
