@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 import socket
+import sys
+sys.stdout.flush()
+sys.stderr.flush()
 
 print("Starting...\n")
 
