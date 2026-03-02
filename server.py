@@ -82,8 +82,8 @@ class Server:
                 # Send to PC via TX characteristic if subscribed
                 if self.tx_characteristic:
                     # Set the value and trigger notification
-                    self.tx_characteristic.set_value(response.encode())
-                    self.ble.update_value(1, 2)  # srv_id=1, chr_id=2
+                    value = list(response.encode())
+                    self.tx_characteristic.set_value(value)
 
     def run(self):
         """Start the BLE server"""
