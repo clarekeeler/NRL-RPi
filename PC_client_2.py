@@ -18,7 +18,7 @@ async def main():
     devices = await BleakScanner.discover(timeout=15.0)
     address = None
     for d in devices:
-        if d.name == "raspberrypi": 
+        if d.name == "pi": 
             address = d.address
             break
     
