@@ -23,7 +23,7 @@ async def main():
             break
     
     if not address:
-        print("raspberrypi not found!")'
+        print("raspberrypi not found!")
         return
     
     # Connect
