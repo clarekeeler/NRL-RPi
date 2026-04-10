@@ -1,4 +1,3 @@
-python3 -c "
 import asyncio
 from bleak import BleakScanner
 
@@ -8,4 +7,3 @@ async def scan():
         print(d.name, d.address)
 
 asyncio.run(scan())
-"

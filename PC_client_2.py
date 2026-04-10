@@ -18,7 +18,7 @@ async def main():
     devices = await BleakScanner.discover(timeout=15.0)
     address = None
     for d in devices:
-        if d.name == "pi.local": 
+        if d.name == "pi.local": # may need to change to pi.local or raspberrypi.local: use test.py to find out
             address = d.address
             break
     
